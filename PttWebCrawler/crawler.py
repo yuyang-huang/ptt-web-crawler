@@ -57,9 +57,8 @@ class PttWebCrawler(object):
                 self.parse_article(article_id, board)
 
     def parse_articles(self, start, end, board, path='.', timeout=3):
-            filename = board + '-' + str(start) + '-' + str(end) + '.json'
-            filename = os.path.join(path, filename)
-            self.store(filename, u'{"articles": [', 'w')
+        filename = os.path.join(path, board + '.tsv')
+        with open(filename, 'w') as f:
             for i in range(end-start+1):
                 index = start + i
                 print('Processing index:', str(index))
@@ -73,20 +72,16 @@ class PttWebCrawler(object):
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 divs = soup.find_all("div", "r-ent")
                 for div in divs:
-                    try:
-                        # ex. link would be <a href="/bbs/PublicServan/M.1127742013.A.240.html">Re: [問題] 職等</a>
-                        href = div.find('a')['href']
-                        link = self.PTT_URL + href
-                        article_id = re.sub('\.html', '', href.split('/')[-1])
-                        if div == divs[-1] and i == end-start:  # last div of last page
-                            self.store(filename, self.parse(link, article_id, board), 'a')
-                        else:
-                            self.store(filename, self.parse(link, article_id, board) + ',\n', 'a')
-                    except:
-                        pass
+                    # ex. link would be <a href="/bbs/PublicServan/M.1127742013.A.240.html">Re: [問題] 職等</a>
+                    tag = div.find('div', 'title').find('a')
+                    title = tag.text
+                    if '[新聞]' not in title or 'Re: ' in title:
+                        continue
+                    href = tag['href']
+                    link = self.PTT_URL + href
+                    article_id = re.sub(r'\.html', '', href.split('/')[-1])
+                    print(article_id, title, link, sep='\t', file=f)
                 time.sleep(0.1)
-            self.store(filename, u']}', 'a')
-            return filename
 
     def parse_article(self, article_id, board, path='.'):
         link = self.PTT_URL + '/bbs/' + board + '/' + article_id + '.html'
@@ -96,7 +91,7 @@ class PttWebCrawler(object):
         return filename
 
     @staticmethod
-    def parse(link, article_id, board, timeout=3):
+    def parse(link, article_id, board, title, timeout=3):
         print('Processing article:', article_id)
         resp = requests.get(url=link, cookies={'over18': '1'}, verify=VERIFY, timeout=timeout)
         if resp.status_code != 200:
