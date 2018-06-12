@@ -61,14 +61,24 @@ class PttWebCrawler(object):
         with open(filename, 'w') as f:
             for i in range(end-start+1):
                 index = start + i
-                print('Processing index:', str(index))
-                resp = requests.get(
-                    url = self.PTT_URL + '/bbs/' + board + '/index' + str(index) + '.html',
-                    cookies={'over18': '1'}, verify=VERIFY, timeout=timeout
-                )
-                if resp.status_code != 200:
-                    print('invalid url:', resp.url)
-                    continue
+                print('Processing index:', index)
+                retry = 0
+                while retry < 10:
+                    try:
+                        resp = requests.get(
+                            url = self.PTT_URL + '/bbs/' + board + '/index' + str(index) + '.html',
+                            cookies={'over18': '1'}, verify=VERIFY, timeout=timeout
+                        )
+                        resp.raise_for_status()
+                    except:
+                        retry += 1
+                        print('Page', index, 'failed, retry', retry)
+                        time.sleep(0.5)
+                        continue
+                    else:
+                        break
+                else:
+                    raise requests.exceptions.ConnectionError('Maximum number of retries exceeded!')
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 divs = soup.find_all("div", "r-ent")
                 for div in divs:
