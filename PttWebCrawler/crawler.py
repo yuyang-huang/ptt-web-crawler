@@ -73,11 +73,14 @@ class PttWebCrawler(object):
                 divs = soup.find_all("div", "r-ent")
                 for div in divs:
                     # ex. link would be <a href="/bbs/PublicServan/M.1127742013.A.240.html">Re: [問題] 職等</a>
-                    tag = div.find('div', 'title').find('a')
-                    title = tag.text
+                    title_tag = div.find('div', 'title')
+                    if '本文已被刪除' in title_tag.text:
+                        continue
+                    link_tag = title_tag.find('a')
+                    title = link_tag.text
                     if '[新聞]' not in title or 'Re: ' in title:
                         continue
-                    href = tag['href']
+                    href = link_tag['href']
                     link = self.PTT_URL + href
                     article_id = re.sub(r'\.html', '', href.split('/')[-1])
                     print(article_id, title, link, sep='\t', file=f)
